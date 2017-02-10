@@ -5,10 +5,16 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 
+#ifdef DEBUG
+ #define DEBUG_PRINTLN(x)  Serial.println (x)
+ #define DEBUG_PRINT(x)  Serial.print (x)
+#else
+ #define DEBUG_PRINTLN(x)
+ #define DEBUG_PRINT(x)
+#endif
 
 #define MSG_LENGTH 31   //0x42 + 31 bytes equal to 32 bytes
-#define DIGITAL_PIN 8   // Digital pin to be write
-
+#define HTTP_TIMEOUT 20000
 unsigned char buf[MSG_LENGTH];
 
 int PM01Value=0;   //define PM1.0 value of the air detector module
@@ -18,8 +24,7 @@ int PM10Value=0;   //define PM10 value of the air detector module
 const char* ssid     = "Mokkula-2111";
 const char* password = "10085999";
 const char* host = "api.thingspeak.com";
-const int   SLEEP_TIME = 1 * 60 * 1000;
-
+const int   SLEEP_TIME = 3 * 60 * 1000;
 
 //GET https://api.thingspeak.com/update?api_key=EG2A8TGZB9O831VJ&field1=0
 
@@ -32,38 +37,30 @@ boolean validateMsg(){
   return receiveSum == ((buf[MSG_LENGTH-2]<<8) + buf[MSG_LENGTH-1]);
 }
 
-int decodePM01(unsigned char *thebuf)
-{
-  int PM01Val;
-  PM01Val=((thebuf[3]<<8) + thebuf[4]); //count PM1.0 value of the air detector module
-  return PM01Val;
+int decodePM01(unsigned char *thebuf){
+  return ((thebuf[3]<<8) + thebuf[4]); //count PM1.0 value of the air detector module
 }
 
 //transmit PM Value to PC
-int decodePM2_5(unsigned char *thebuf)
-{
-  int PM2_5Val;
-  PM2_5Val=((thebuf[5]<<8) + thebuf[6]);//count PM2.5 value of the air detector module
-  return PM2_5Val;
-  }
+int decodePM2_5(unsigned char *thebuf){
+  return ((thebuf[5]<<8) + thebuf[6]);//count PM2.5 value of the air detector module
+}
 
 //transmit PM Value to PC
-int decodePM10(unsigned char *thebuf)
-{
-  int PM10Val;
-  PM10Val=((thebuf[7]<<8) + thebuf[8]); //count PM10 value of the air detector module  
-  return PM10Val;
+int decodePM10(unsigned char *thebuf){
+  return ((thebuf[7]<<8) + thebuf[8]); //count PM10 value of the air detector module  
 }
 
 void powerOnSensor(){
-  
   digitalWrite(D0, HIGH);
 }
 
 void powerOffSensor(){
   digitalWrite(D0, LOW);
   WiFi.disconnect();
-  Serial.println("going to sleep zzz...");
+  
+  DEBUG_PRINTLN("going to sleep zzz...");
+    
   //ESP.deepSleep(SLEEP_TIME * 1000000);
   delay(SLEEP_TIME);
 }
@@ -80,74 +77,121 @@ void setupWIFI(){
     Serial.print(".");
   }
 
-  Serial.println("");
-  Serial.println("WiFi connected");  
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
+  DEBUG_PRINTLN("");
+  DEBUG_PRINTLN("WiFi connected");  
+  DEBUG_PRINTLN("IP address: ");
+  DEBUG_PRINTLN(WiFi.localIP());
 }
 
 void setup()
 {
   Serial.begin(9600);   //use serial0  
   Serial.setTimeout(1500);    //set the Timeout to 1500ms, longer than the data transmission periodic time of the sensor
-  Serial.println("");
-  Serial.println(" Initialization started");  
+  DEBUG_PRINTLN("");
+  DEBUG_PRINTLN(" Initialization started");  
   pinMode(D0, OUTPUT);
-  
- //   
- Serial.println("");
- Serial.println("Initialization finished");  
+
+  DEBUG_PRINTLN("");
+  DEBUG_PRINTLN("Initialization finished");  
   
 }
 
-void sendDataToCloud(){
+void sendDataToCloud()
+{
+  DEBUG_PRINTLN("sendDataToCloud start");  
+  // Use WiFiClient class to create TCP connections
+  WiFiClient client;
+  if (!client.connect("api.thingspeak.com", 80)) {
+    DEBUG_PRINTLN("connection failed");
+    return;
+  }
 
+  // We now create a URI for the request
+  String url = "update?api_key=EG2A8TGZB9O831VJ&field1=" + String(PM01Value) + 
+  "&field2=" + String(PM2_5Value) +
+  "&field3=" + String(PM10Value);
+  
+  DEBUG_PRINTLN("Requesting GET: " + url);
+  // This will send the request to the server
+  client.print(String("GET /") + url + " HTTP/1.1\r\n" +
+               "Host: " + host + "\r\n" + 
+               "Accept: */*\r\n" +
+               "User-Agent: Mozilla/4.0 (compatible; esp8266 Lua; Windows NT 5.1)\r\n" +
+               "Connection: close\r\n" +
+               "\r\n");               
+  client.flush();
+  delay(10);
+  DEBUG_PRINTLN("wait for response");
+  unsigned long timeout = millis();
+  while (client.available() == 0) {
+    if (millis() - timeout > HTTP_TIMEOUT) {
+      DEBUG_PRINTLN(">>> Client Timeout !");
+      client.stop();
+      DEBUG_PRINTLN("closing connection by timeout");
+      return;
+    }
+  }
+
+  // Read all the lines of the reply from server and print them to Serial
+  while(client.available()){
+    String line = client.readStringUntil('\r');
+    Serial.print(line);
+  }
+
+  client.stop();
+  DEBUG_PRINTLN();
+  DEBUG_PRINTLN("closing connection");
 }
 
 void loop(){
-  Serial.println("loop start");
-  
+  DEBUG_PRINTLN("loop start");
+  unsigned long timeout = millis();
+
+  PM01Value  = 0;
+  PM2_5Value = 0;
+  PM10Value  = 0;
+   
   powerOnSensor();
   setupWIFI();
   
-  //todo enable fan
-  Serial.println("sensor warm-up 30s");
-  delay(30 * 1000);
+  timeout = millis() - timeout;
+  if(timeout < 30000){
+    DEBUG_PRINT("sensor warm-up seconds: ");
+    DEBUG_PRINTLN(timeout);    
+    delay(timeout);
+  }else{
+    DEBUG_PRINT("preparation took seconds: ");
+    DEBUG_PRINTLN(timeout/1000);
+  }
 
   
-  for(int i = 0; i < 100; i++){
+  for(int i = 0; i < 20; i++){
     if(Serial.find(0x42)){    //start to read when detect 0x42
-      Serial.println("Serial found");
+      DEBUG_PRINTLN("Serial found");
       Serial.readBytes(buf, MSG_LENGTH);
-      Serial.println("Serial read");
+      DEBUG_PRINTLN("Serial read");
   
       if(buf[0] == 0x4d && validateMsg()){
-        Serial.println("buf validated");
+        DEBUG_PRINTLN("buf validated");
         PM01Value = decodePM01(buf); //count PM1.0 value of the air detector module
         PM2_5Value = decodePM2_5(buf);//count PM2.5 value of the air detector module
         PM10Value = decodePM10(buf); //count PM10 value of the air detector module 
 
-        Serial.print("PM1.0: ");  
-        Serial.print(PM01Value);
-        Serial.println("  ug/m3");            
-      
-        Serial.print("PM2.5: ");  
-        Serial.print(PM2_5Value);
-        Serial.println("  ug/m3");     
-        
-        Serial.print("PM 10: ");  
-        Serial.print(PM10Value);
-        Serial.println("  ug/m3");   
+        if(PM01Value == 0 && PM2_5Value == 0 && PM10Value == 0){
+          DEBUG_PRINT("000 - skip loop: ");
+          DEBUG_PRINTLN(i);
+          continue;
+        }
         break;
       }else{
-        Serial.println("message error");   
+        DEBUG_PRINTLN("message error");   
       }
     }else{
-      Serial.println("sensor communication error");
+      DEBUG_PRINTLN("sensor communication error");
     }
   }
 
   sendDataToCloud();
-  Serial.println();    
+  DEBUG_PRINTLN();    
   powerOffSensor();  
 }
