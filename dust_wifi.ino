@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 
+//#define DEBUG
 #ifdef DEBUG
  #define DEBUG_PRINTLN(x)  Serial.println (x)
  #define DEBUG_PRINT(x)  Serial.print (x)
@@ -15,6 +16,7 @@
 
 #define MSG_LENGTH 31   //0x42 + 31 bytes equal to 32 bytes
 #define HTTP_TIMEOUT 20000
+#define MIN_WARM_TIME 30000
 unsigned char buf[MSG_LENGTH];
 
 int PM01Value=0;   //define PM1.0 value of the air detector module
@@ -154,16 +156,12 @@ void loop(){
   powerOnSensor();
   setupWIFI();
   
-  timeout = millis() - timeout;
-  if(timeout < 30000){
-    DEBUG_PRINT("sensor warm-up seconds: ");
+  timeout = MIN_WARM_TIME - (millis() - timeout);
+  if(timeout > 0){
+    DEBUG_PRINT("sensor warm-up: ");
     DEBUG_PRINTLN(timeout);    
     delay(timeout);
-  }else{
-    DEBUG_PRINT("preparation took seconds: ");
-    DEBUG_PRINTLN(timeout/1000);
   }
-
   
   for(int i = 0; i < 20; i++){
     if(Serial.find(0x42)){    //start to read when detect 0x42
