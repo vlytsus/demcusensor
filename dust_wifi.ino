@@ -29,12 +29,12 @@ int pm10Value = 0;   //define pm10 value of the air detector module
 int airQualityIndex = 0;
 
 const char* host = "api.thingspeak.com";
-const char* CLOUD_APPLICATION_ENDPOINT = "update?api_key=EG2A8TGZB9O831VJ&field1=";
-const char* ssid     = "Mokkula-2111";
-const char* password = "10085999";
+const char* CLOUD_APPLICATION_ENDPOINT = "update?api_key=EG2A8TGZB9XXXXXX&field1=";
+const char* ssid     = "WIFI_SSID";
+const char* password = "********";
 const int   SLEEP_TIME = 3 * 60 * 1000;
 
-//GET https://api.thingspeak.com/update?api_key=EG2A8TGZB9O831VJ&field1=0
+//GET https://api.thingspeak.com/update?api_key=EG2A8TGZB9XXXXXX&field1=0
 
 boolean validateMsg(){
   int receiveSum=0;
