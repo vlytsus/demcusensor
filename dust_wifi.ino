@@ -34,6 +34,7 @@ const char* ssid     = "Free_WiFi";
 const char* password = "***********";
 const int   SLEEP_TIME = 5 * 60 * 1000;
 
+// PMS5003 Message Structure
 struct PMSMessage {
     unsigned int pm1tsi;
     unsigned int pm25tsi;
