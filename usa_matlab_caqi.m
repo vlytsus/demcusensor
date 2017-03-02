@@ -1,16 +1,4 @@
-pm25 = thingSpeakRead(170228, 'Fields', 2, 'NumMinutes', 21, 'ReadKey', 'C1XHT1J1R181MOCE');
-
-% Calculate the average humidity
-avgPm25 = mean(pm25);
-if(avgPm25 > 5)
-    avgPm25 = avgPm25 - 20 + (130 / avgPm25) ;
-end
-
-% Write the average humidity to another channel specified by the
-% 'writeChannelID' variable
-
-thingSpeakWrite(229635, avgPm25, 'writekey', '4ABB1FXW2EY12I40');
-
+%// USA AQI Standard
 %// AQI formula: https://en.wikipedia.org/wiki/Air_Quality_Index#United_States
 function output = toAQI(I_high, I_low, C_high, C_low, C)
   aqiResult = (I_high - I_low) * (C - C_low) / (C_high - C_low) + I_low
