@@ -22,3 +22,20 @@ function output = calculateAQI25(density)
     output = 1001;
   end
 end
+
+%// Polution levels
+function output = aqi25captions(density)     
+  if density <= 25
+    output =  'Perfect =)';
+  elseif density <= 50
+    output =  'Good :)';
+  elseif density <= 75
+    output =  'Moderate :|';
+  elseif density <= 100
+    output =  'Unhealthy :(';
+  elseif density <= 200
+    output =  'Bad :O';
+  else
+    output =  'Hazardous X(';
+  end
+end
