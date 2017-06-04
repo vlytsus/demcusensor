@@ -1,4 +1,5 @@
-%// Euro AQI Standard
+%// Matlab script to translate pure PM2.5 data to the Euro AQI Standard
+
 %// AQI formula: https://en.wikipedia.org/wiki/Air_Quality_Index#United_States
 function output = toAQI(I_high, I_low, C_high, C_low, C)
   aqiResult = (I_high - I_low) * (C - C_low) / (C_high - C_low) + I_low
